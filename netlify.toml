@@ -1,0 +1,4 @@
+# Static site — no build step, no functions. The app is plain files at the
+# repo root, so the publish directory is the root itself.
+[build]
+  publish = "."

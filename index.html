@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Migraine Log</title>
+<meta name="description" content="One-tap migraine log with barometric pressure and humidity">
+<meta name="theme-color" content="#3b2c63">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Migraine Log">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <h1>Migraine Log</h1>
+</header>
+
+<main id="main">
+
+  <!-- ===== ONE BUTTON ===== -->
+  <section class="hero">
+    <button type="button" id="btn-log" class="log-button">
+      <span class="log-button-icon" aria-hidden="true">＋</span>
+      <span class="log-button-label">Log Migraine</span>
+    </button>
+    <p id="log-status" class="log-status">Records the time and pulls pressure &amp; humidity for where you are.</p>
+  </section>
+
+  <!-- ===== MOST RECENT ENTRY ===== -->
+  <section id="latest-card" class="card latest hidden">
+    <div class="latest-head">
+      <span class="section-label">Last logged</span>
+      <span id="latest-when" class="latest-when"></span>
+    </div>
+    <div id="latest-grid" class="reading-grid"></div>
+    <div id="latest-prior"></div>
+    <p id="latest-note" class="hint hidden"></p>
+  </section>
+
+  <!-- ===== HISTORY ===== -->
+  <section class="history">
+    <div class="history-head">
+      <h2>History</h2>
+      <span id="entry-count" class="entry-count"></span>
+    </div>
+    <p id="empty-state" class="empty-state">Nothing logged yet. Tap the button when an attack starts.</p>
+    <ul id="entry-list" class="entry-list"></ul>
+  </section>
+
+  <!-- ===== EXPORT + LOCATION ===== -->
+  <section class="card">
+    <button type="button" id="btn-export" class="wide-button">Export CSV</button>
+    <p class="hint">Every entry, one row each — opens in Numbers, Excel, or Sheets.</p>
+
+    <div class="divider"></div>
+
+    <span class="section-label">Location for weather</span>
+    <p id="location-display" class="location-display">Not set — uses your device location on the first log.</p>
+    <div class="button-row">
+      <button type="button" id="btn-use-current" class="small-button">Use current location</button>
+      <button type="button" id="btn-toggle-search" class="small-button">Set by city</button>
+    </div>
+    <div id="city-search" class="city-search hidden">
+      <input type="text" id="city-input" placeholder="City name, e.g. Tallahassee" autocomplete="off">
+      <button type="button" id="btn-city-search" class="small-button">Search</button>
+    </div>
+    <p class="hint">Saved on this device and reused whenever GPS isn't available.</p>
+  </section>
+
+  <p class="footer-note">
+    Entries live in this browser only — nothing is uploaded. Export regularly if the log matters.
+  </p>
+
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="js/db.js"></script>
+<script src="js/weather.js"></script>
+<script src="js/csv.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
