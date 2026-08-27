@@ -16,6 +16,19 @@
 </head>
 <body>
 
+<!-- ===== PASSPHRASE GATE ===== -->
+<div id="gate" class="gate hidden">
+  <div class="gate-inner">
+    <div class="gate-icon" aria-hidden="true">🌡️</div>
+    <h1 class="gate-title">Migraine Log</h1>
+    <p class="gate-sub">Enter the passphrase to continue.</p>
+    <input type="password" id="gate-input" class="gate-input" placeholder="Passphrase"
+           autocapitalize="none" autocorrect="off" autocomplete="current-password">
+    <p id="gate-error" class="gate-error hidden"></p>
+    <button type="button" id="gate-enter" class="wide-button">Enter</button>
+  </div>
+</div>
+
 <header class="topbar">
   <h1>Migraine Log</h1>
 </header>
@@ -70,6 +83,11 @@
       <button type="button" id="btn-city-search" class="small-button">Search</button>
     </div>
     <p class="hint">Saved on this device and reused whenever GPS isn't available.</p>
+
+    <div class="divider"></div>
+
+    <button type="button" id="btn-lock" class="small-button">Lock this device</button>
+    <p class="hint">Asks for the passphrase again the next time the app opens.</p>
   </section>
 
   <p class="footer-note">
@@ -80,6 +98,7 @@
 
 <div id="toast" class="toast hidden"></div>
 
+<script src="js/lock.js"></script>
 <script src="js/db.js"></script>
 <script src="js/weather.js"></script>
 <script src="js/csv.js"></script>

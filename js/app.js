@@ -464,6 +464,7 @@ function wireEvents() {
   el("btn-log").addEventListener("click", logMigraine);
   el("btn-export").addEventListener("click", exportCSV);
   el("btn-use-current").addEventListener("click", useCurrentLocation);
+  el("btn-lock").addEventListener("click", Lock.lock);
   el("btn-city-search").addEventListener("click", searchCity);
 
   el("btn-toggle-search").addEventListener("click", () => {
@@ -509,6 +510,9 @@ function wireEvents() {
 }
 
 async function init() {
+  // Nothing is read from storage or drawn until the passphrase clears.
+  await Lock.require();
+
   wireEvents();
   loadSavedLocation();
   state.entries = await DB.all();

@@ -48,6 +48,31 @@ account. City lookup uses their geocoding endpoint.
 - **Offline-capable.** A service worker caches the app shell, so it opens and
   logs without a connection.
 
+## Passphrase
+
+The app asks for a passphrase before it shows anything, and stays unlocked on
+that device until **Lock this device** is tapped (bottom of the screen).
+
+Only the SHA-256 hash of the passphrase is in the source — the passphrase
+itself is never written to this repo or stored on the device, so a reader of
+the code doesn't get it. To change it, generate a new hash and replace `HASH`
+at the top of `js/lock.js`:
+
+```
+printf '%s' 'your new passphrase' | shasum -a 256
+```
+
+**What this does and doesn't do.** There is no server: every entry lives in
+this browser's IndexedDB, on this device. So the gate is worth exactly what a
+screen lock is worth — it stops someone who picks up an unlocked phone from
+reading the log. It does not encrypt anything, and anyone with developer tools
+on an unlocked device can read the database directly. Opening the site on
+*another* device shows an empty log regardless, since nothing is shared.
+
+For a lock that a browser can't walk past, use Netlify's own site-level
+password protection (Site configuration → Access control), which is enforced
+before any file is served. That is a paid Netlify feature.
+
 ## Deploying to Netlify
 
 A static site with no build step. Point a Netlify site at this repo and it
