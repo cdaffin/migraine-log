@@ -35,7 +35,7 @@ const DB = (() => {
   }
 
   return {
-    // Insert or replace — the log button inserts, editing severity/notes and
+    // Insert or replace — the log button inserts, editing the time or notes and
     // the offline weather backfill both replace.
     async put(entry) {
       const s = await store("readwrite");

@@ -7,7 +7,6 @@ const CSVio = (() => {
   const COLUMNS = [
     ["Date", (e) => fmtDate(e.date)],
     ["Time", (e) => fmtTime(e.date)],
-    ["Severity (1-10)", (e) => e.severity ?? ""],
     ["Pressure (inHg)", (e) => num(e.pressureInHg, 2)],
     ["Pressure (hPa)", (e) => num(e.pressureHpa, 1)],
     ["3h Change (hPa)", (e) => signed(e.pressureChange3h, 1)],

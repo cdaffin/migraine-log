@@ -22,6 +22,15 @@ function esc(s) {
   ));
 }
 
+// "2026-08-27T17:05" in local time — the shape <input type="datetime-local">
+// expects, and the shape it hands back.
+function localInputValue(iso) {
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+         `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function fmtTime(iso) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
@@ -188,14 +197,14 @@ async function logMigraine() {
   const entry = {
     id: crypto.randomUUID(),
     date: now.toISOString(),
-    severity: null,
     notes: "",
     weatherStatus: "pending",
+    updatedAt: now.toISOString(),
   };
 
   // Saved before the network is touched: the timestamp is the part that can't
   // be recovered later, and weather for a past hour always can be.
-  await DB.put(entry);
+  await persist(entry);
   state.entries.unshift(entry);
   render();
   el("log-status").textContent = `Logged ${fmtTime(entry.date)} — checking conditions…`;
@@ -204,7 +213,7 @@ async function logMigraine() {
     const location = await resolveLocation();
     if (!location) {
       entry.weatherStatus = "no-location";
-      await DB.put(entry);
+      await persist(entry);
       el("log-status").textContent = `Logged ${fmtTime(entry.date)} — no location yet`;
       showToast("Saved. Set a location below and the weather fills itself in.");
       render();
@@ -218,7 +227,7 @@ async function logMigraine() {
       : `Logged ${fmtTime(entry.date)}`;
   } catch (err) {
     entry.weatherStatus = "pending";
-    await DB.put(entry);
+    await persist(entry);
     el("log-status").textContent = `Logged ${fmtTime(entry.date)} — weather will fill in later`;
     showToast(`Saved. Weather lookup failed (${err.message}) — it'll retry.`);
   } finally {
@@ -226,6 +235,94 @@ async function logMigraine() {
     btn.classList.remove("logging");
     render();
   }
+}
+
+// Every local write goes through here: stamp it, store it, then try to get it
+// to the server. The local write is what must not fail — the push can retry.
+async function persist(entry, { push = true } = {}) {
+  entry.updatedAt = new Date().toISOString();
+  entry._synced = false;
+  await DB.put(entry);
+  if (push) pushEntry(entry);
+}
+
+// `_synced` is bookkeeping for this device; the server never sees it.
+function forServer(entry) {
+  const { _synced, ...rest } = entry;
+  return rest;
+}
+
+async function pushEntry(entry) {
+  try {
+    await Sync.push(forServer(entry));
+    entry._synced = true;
+    await DB.put(entry);
+    setSyncStatus("ok");
+  } catch (err) {
+    setSyncStatus(err instanceof Sync.AuthError ? "auth" : "offline");
+  }
+}
+
+// Anything the server hasn't acknowledged yet, in one pass.
+async function flushUnsynced() {
+  const unsynced = state.entries.filter((e) => e._synced !== true);
+  for (const entry of unsynced) {
+    try {
+      await Sync.push(forServer(entry));
+      entry._synced = true;
+      await DB.put(entry);
+    } catch {
+      return false; // still offline; the next launch picks up where this left off
+    }
+  }
+  return true;
+}
+
+// Server entries win only when their edit is newer, so an offline edit made
+// here isn't clobbered by a stale copy from another device.
+async function pullAndMerge() {
+  const remote = await Sync.pull();
+  const byId = new Map(state.entries.map((e) => [e.id, e]));
+  let changed = false;
+
+  for (const incoming of remote) {
+    const local = byId.get(incoming.id);
+    if (!local || (incoming.updatedAt || "") > (local.updatedAt || "")) {
+      const merged = { ...incoming, _synced: true };
+      await DB.put(merged);
+      byId.set(incoming.id, merged);
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    state.entries = [...byId.values()].sort((a, b) => new Date(b.date) - new Date(a.date));
+  }
+  return changed;
+}
+
+async function syncNow() {
+  try {
+    await Sync.flushDeletes();
+    const pulled = await pullAndMerge();
+    const pushed = await flushUnsynced();
+    if (pulled) render();
+    setSyncStatus(pushed ? "ok" : "offline");
+  } catch (err) {
+    setSyncStatus(err instanceof Sync.AuthError ? "auth" : "offline");
+  }
+}
+
+function setSyncStatus(state_) {
+  const node = el("sync-status");
+  if (!node) return;
+  const text = {
+    ok: "Saved to the server.",
+    offline: "Saved on this device — will reach the server when you're back online.",
+    auth: "Server rejected the passphrase — set LOG_PASSWORD in Netlify to match.",
+  }[state_];
+  node.textContent = text || "";
+  node.classList.toggle("status-warn", state_ !== "ok");
 }
 
 // Fetches conditions for an entry's timestamp/place and folds them in. The
@@ -246,7 +343,7 @@ async function attachWeather(entry, location) {
   // Entries written before the raw pair existed carry a computed 24h delta;
   // the two readings replace it.
   delete entry.pressureChange24h;
-  await DB.put(entry);
+  await persist(entry);
   const idx = state.entries.findIndex((e) => e.id === entry.id);
   if (idx !== -1) state.entries[idx] = entry;
   return entry;
@@ -290,20 +387,47 @@ async function backfillPending() {
 
 // ------------------------------------------------------------------ entry UI
 
-async function setSeverity(id, value) {
-  const entry = state.entries.find((e) => e.id === id);
-  if (!entry) return;
-  // Tapping the current value again clears it.
-  entry.severity = entry.severity === value ? null : value;
-  await DB.put(entry);
-  render();
-}
-
 async function saveNotes(id, text) {
   const entry = state.entries.find((e) => e.id === id);
   if (!entry || entry.notes === text) return;
   entry.notes = text;
-  await DB.put(entry);
+  await persist(entry);
+}
+
+// Correcting when an attack actually started. The weather is tied to that
+// moment, so the old reading is dropped and re-read for the new one rather
+// than left describing a time the entry no longer claims.
+async function changeDate(id, value) {
+  const entry = state.entries.find((e) => e.id === id);
+  if (!entry || !value) return;
+
+  const next = new Date(value);
+  if (isNaN(next) || next.toISOString() === entry.date) return;
+
+  entry.date = next.toISOString();
+  entry.weatherStatus = "pending";
+  delete entry.prior24h;
+  delete entry.weatherSchema;
+  await persist(entry);
+
+  state.entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+  render();
+
+  const at = entry.latitude != null
+    ? { lat: entry.latitude, lng: entry.longitude, label: entry.locationLabel }
+    : state.location;
+  if (!at) {
+    showToast("Time updated — set a location and the weather fills in.");
+    return;
+  }
+
+  try {
+    await attachWeather(entry, at);
+    showToast("Time updated, conditions re-read for the new time");
+  } catch {
+    showToast("Time updated — weather will fill in later");
+  }
+  render();
 }
 
 async function deleteEntry(id) {
@@ -314,7 +438,14 @@ async function deleteEntry(id) {
   state.entries = state.entries.filter((e) => e.id !== id);
   if (state.openId === id) state.openId = null;
   render();
-  showToast("Entry deleted");
+  try {
+    await Sync.remove(id);
+    showToast("Entry deleted");
+  } catch {
+    // Queued by Sync.remove; replayed on the next sync so the pull can't
+    // resurrect it.
+    showToast("Entry deleted here — the server copy goes when you're online");
+  }
 }
 
 async function exportCSV() {
@@ -407,15 +538,6 @@ function renderLatest() {
   note.classList.toggle("hidden", !text);
 }
 
-function severityRow(entry) {
-  const buttons = Array.from({ length: 10 }, (_, i) => {
-    const value = i + 1;
-    const on = entry.severity === value ? " on" : "";
-    return `<button type="button" class="sev${on}" data-severity="${value}" data-id="${entry.id}">${value}</button>`;
-  }).join("");
-  return `<div class="severity-row">${buttons}</div>`;
-}
-
 function entryItem(entry) {
   const trend = trendLabel(entry.pressureChange3h);
   const summary = entry.weatherStatus === "ok"
@@ -429,7 +551,6 @@ function entryItem(entry) {
       <button type="button" class="entry-head" data-toggle="${entry.id}">
         <span class="entry-when">${esc(fmtDayTime(entry.date))}</span>
         <span class="entry-summary">${summary}</span>
-        ${entry.severity ? `<span class="severity-chip">${entry.severity}</span>` : ""}
         <span class="chevron" aria-hidden="true">${open ? "▾" : "▸"}</span>
       </button>
       ${open ? `
@@ -437,8 +558,10 @@ function entryItem(entry) {
         <div class="reading-grid">${readingGrid(entry)}</div>
         ${priorBlock(entry)}
         ${statusNote(entry) ? `<p class="hint">${statusNote(entry)}</p>` : ""}
-        <span class="section-label">Severity</span>
-        ${severityRow(entry)}
+        <span class="section-label">Date &amp; time</span>
+        <input type="datetime-local" class="date-edit" data-date="${entry.id}"
+               value="${localInputValue(entry.date)}">
+        <p class="hint">Changing this re-reads the weather for the new time.</p>
         <span class="section-label">Notes</span>
         <textarea class="notes" rows="2" data-notes="${entry.id}"
           placeholder="Triggers, meds, how long it lasted">${esc(entry.notes || "")}</textarea>
@@ -491,11 +614,6 @@ function wireEvents() {
       render();
       return;
     }
-    const sev = e.target.closest("[data-severity]");
-    if (sev) {
-      setSeverity(sev.dataset.id, Number(sev.dataset.severity));
-      return;
-    }
     const del = e.target.closest("[data-delete]");
     if (del) deleteEntry(del.dataset.delete);
   });
@@ -506,7 +624,15 @@ function wireEvents() {
     if (notes) saveNotes(notes.dataset.notes, notes.value.trim());
   });
 
-  window.addEventListener("online", backfillPending);
+  list.addEventListener("change", (e) => {
+    const date = e.target.closest("[data-date]");
+    if (date) changeDate(date.dataset.date, date.value);
+  });
+
+  window.addEventListener("online", () => {
+    backfillPending();
+    syncNow();
+  });
 }
 
 async function init() {
@@ -517,6 +643,7 @@ async function init() {
   loadSavedLocation();
   state.entries = await DB.all();
   render();
+  await syncNow();
   backfillPending();
 
   if ("serviceWorker" in navigator) {

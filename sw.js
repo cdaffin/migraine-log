@@ -1,5 +1,5 @@
 // Serves the whole origin — this app is alone on its own site.
-const CACHE_NAME = "migraine-log-v2";
+const CACHE_NAME = "migraine-log-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -7,6 +7,7 @@ const APP_SHELL = [
   "./css/style.css",
   "./js/lock.js",
   "./js/db.js",
+  "./js/sync.js",
   "./js/weather.js",
   "./js/csv.js",
   "./js/app.js",
@@ -46,6 +47,10 @@ self.addEventListener("fetch", (event) => {
   // Weather and geocoding always go to the network — a cached reading would be
   // worse than no reading.
   if (url.origin !== self.location.origin) return;
+
+  // The log API is live data, not app shell. A cached copy would hand back a
+  // stale log and swallow writes.
+  if (url.pathname.startsWith("/api/")) return;
 
   if (req.mode === "navigate") {
     event.respondWith(fetch(req).catch(() => caches.match("./index.html")));

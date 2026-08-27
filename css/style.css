@@ -264,21 +264,6 @@ html, body {
 }
 .chevron { grid-area: chevron; color: var(--text-secondary); font-size: 0.85rem; }
 
-.severity-chip {
-  grid-area: chip;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 6px;
-  border-radius: 14px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
 .pending-tag { font-style: italic; }
 
 .entry-body {
@@ -288,27 +273,18 @@ html, body {
 .entry-body .section-label { margin-top: 16px; }
 .entry-body .reading-grid { margin-top: 12px; }
 
-.severity-row {
-  display: grid;
-  grid-template-columns: repeat(10, 1fr);
-  gap: 4px;
-}
-.severity-row .sev {
-  padding: 8px 0;
+.date-edit {
+  width: 100%;
+  padding: 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: transparent;
+  border-radius: 10px;
+  background: var(--bg);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
+  font-size: 0.95rem;
 }
-.severity-row .sev.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
+
+.status-warn { color: var(--up); }
 
 .notes {
   width: 100%;

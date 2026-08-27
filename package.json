@@ -1,0 +1,8 @@
+{
+  "name": "migraine-log",
+  "private": true,
+  "description": "Netlify Function backend for the migraine log's server-side copy",
+  "dependencies": {
+    "@netlify/blobs": "^10.7.9"
+  }
+}

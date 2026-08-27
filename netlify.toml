@@ -1,4 +1,8 @@
-# Static site — no build step, no functions. The app is plain files at the
-# repo root, so the publish directory is the root itself.
+# Static site plus one function. The app is plain files at the repo root, so
+# the publish directory is the root itself.
 [build]
   publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"

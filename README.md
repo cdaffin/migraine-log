@@ -3,8 +3,9 @@
 One button. Tap it when an attack starts and it records the moment plus the
 weather that goes with it — barometric pressure, humidity, dew point,
 temperature, wind, sky — and the same set of readings from 24 hours earlier at
-the same place. Everything stays on the device; CSV export is how the data gets
-out.
+the same place. Entries are kept in the browser and copied to a passphrase-gated
+store on the server, so the log survives a lost phone or a cleared browser. CSV
+export is how the data gets out.
 
 ## What a tap records
 
@@ -16,7 +17,11 @@ out.
 | 24h prior reading | The same set of values, same place, 24 hours before the logged timestamp |
 | 3h pressure change | The one derived figure kept, since nothing else stores the hour three back |
 | Location | Device GPS, or the saved fallback location |
-| Severity, notes | Optional, added afterwards by tapping the entry |
+| Notes | Optional, added afterwards by tapping the entry |
+
+Tapping an entry also lets you correct its date and time — the weather is tied
+to that moment, so changing it re-reads the conditions for the new time rather
+than leaving a reading that describes a time the entry no longer claims.
 
 The two readings are stored and exported raw, side by side — there is no 24h
 difference column on purpose. Subtracting them is the spreadsheet's job, which
@@ -36,6 +41,12 @@ account. City lookup uses their geocoding endpoint.
 - **The timestamp is never at risk.** The entry is written to IndexedDB before
   the network is touched. If the weather call fails, the entry is kept and
   marked pending.
+- **The device is the working store; the server is the copy.** A tap always
+  succeeds locally and never waits on a round trip. The entry is pushed to
+  `/api/log` straight after, and anything the server hasn't acknowledged is
+  retried on the next launch or `online` event — including deletes, which are
+  queued so a later pull can't resurrect them. Where two edits collide, the one
+  with the newer `updatedAt` wins.
 - **Pending entries fill themselves in** on the next launch or the next time
   the browser comes back online. Open-Meteo serves ~3 months of hourly history,
   so a backfill can be quite late and still be accurate. Entries stored before
@@ -62,16 +73,22 @@ at the top of `js/lock.js`:
 printf '%s' 'your new passphrase' | shasum -a 256
 ```
 
-**What this does and doesn't do.** There is no server: every entry lives in
-this browser's IndexedDB, on this device. So the gate is worth exactly what a
-screen lock is worth — it stops someone who picks up an unlocked phone from
-reading the log. It does not encrypt anything, and anyone with developer tools
-on an unlocked device can read the database directly. Opening the site on
-*another* device shows an empty log regardless, since nothing is shared.
+The same passphrase is sent to `/api/log` as the `x-log-pass` header, where the
+function compares it against `LOG_PASSWORD` in constant time. **That server-side
+check is the real one** — it runs somewhere the browser can't talk past, and it
+is what stands between the log and anyone who finds the URL.
 
-For a lock that a browser can't walk past, use Netlify's own site-level
-password protection (Site configuration → Access control), which is enforced
-before any file is served. That is a paid Netlify feature.
+**What this does and doesn't do.** Entries now leave the device: they are stored
+server-side in Netlify Blobs, readable by anyone holding the passphrase, and by
+whoever administers the Netlify account. Nothing is encrypted at rest beyond
+what Netlify provides. The client-side gate on its own is worth what a screen
+lock is worth — it stops someone who picks up an unlocked phone — and anyone
+with developer tools on an unlocked device can read the local database and the
+stored passphrase directly.
+
+For a lock in front of the static files themselves, add Netlify's site-level
+password protection (Site configuration → Access control), enforced before any
+file is served. That is a paid Netlify feature, and it stacks with this one.
 
 ## Deploying to Netlify
 
@@ -81,8 +98,16 @@ there is nothing to configure.
 
 1. Netlify → **Add new site → Import an existing project**
 2. Pick this repository
-3. Leave the build command empty; publish directory comes from `netlify.toml`
-4. Deploy
+3. Leave the build command empty; publish directory and the functions directory
+   both come from `netlify.toml`
+4. **Set `LOG_PASSWORD`** under Site configuration → Environment variables, to
+   the same passphrase the app asks for. Without it `/api/log` answers 503 and
+   nothing syncs — the app still logs locally, and pushes once the variable is
+   set.
+5. Deploy
+
+The function stores everything in one Netlify Blob (store `migraine-log`, key
+`entries`). Blobs are provisioned automatically; there is nothing to create.
 
 ## Installing on iPhone
 

@@ -1,16 +1,21 @@
-// Passphrase gate. Everything this app stores lives in this browser, so the
-// gate's job is to stop someone who picks up an unlocked device from reading
-// the log — not to defend a server, since there isn't one.
+// Passphrase gate, and the credential the server copy is fetched with.
 //
-// The passphrase is never stored anywhere, in this file or on the device. Only
-// its SHA-256 hash is compiled in, so the repo being public doesn't hand the
-// passphrase to a reader. To change it, print a new hash and paste it below:
+// Two jobs. Locally it gates the screen, so someone who picks up an unlocked
+// device doesn't read the log. Remotely it is the passphrase sent to /api/log,
+// where the function compares it against LOG_PASSWORD — that check is the real
+// one, since it runs on a server the browser can't talk past.
+//
+// Only the SHA-256 hash is compiled in, so the repo being public doesn't hand
+// the passphrase to a reader. The passphrase itself is kept in this browser's
+// localStorage after a correct entry, because the server needs it on every
+// request. To change it, print a new hash, paste it below, and set the same
+// new passphrase as LOG_PASSWORD in the Netlify dashboard:
 //
 //   printf '%s' 'your new passphrase' | shasum -a 256
 //
 const Lock = (() => {
   const HASH = "0a00bf94b9234290c836681b92c5f70fbc5f3faba8e4fd3bb650286b8bb8dd99";
-  const UNLOCKED_KEY = "migraine-log.unlocked";
+  const PASS_KEY = "migraine-log.pass";
 
   async function sha256Hex(text) {
     const bytes = new TextEncoder().encode(text);
@@ -20,25 +25,31 @@ const Lock = (() => {
       .join("");
   }
 
-  function isUnlocked() {
+  // Held in memory too, so a browser that blocks storage still syncs for the
+  // life of the tab instead of failing every request.
+  let passphrase = "";
+
+  function stored() {
     try {
-      return localStorage.getItem(UNLOCKED_KEY) === HASH;
+      return localStorage.getItem(PASS_KEY) || "";
     } catch {
-      return false; // storage blocked — ask every time rather than failing open
+      return ""; // storage blocked — ask every time rather than failing open
     }
   }
 
-  function remember() {
+  function remember(value) {
+    passphrase = value;
     try {
-      localStorage.setItem(UNLOCKED_KEY, HASH);
+      localStorage.setItem(PASS_KEY, value);
     } catch {
-      // Non-fatal: the session stays unlocked, the next launch asks again.
+      // Non-fatal: this tab stays unlocked, the next launch asks again.
     }
   }
 
   function lock() {
+    passphrase = "";
     try {
-      localStorage.removeItem(UNLOCKED_KEY);
+      localStorage.removeItem(PASS_KEY);
     } catch {
       // Nothing to clear if storage is unavailable.
     }
@@ -48,7 +59,9 @@ const Lock = (() => {
   // Resolves once the app may show data: immediately when this device has
   // already been unlocked, otherwise when the right passphrase is entered.
   function require() {
-    if (isUnlocked()) {
+    const saved = stored();
+    if (saved) {
+      passphrase = saved;
       document.getElementById("gate").remove();
       return Promise.resolve();
     }
@@ -77,7 +90,7 @@ const Lock = (() => {
           return;
         }
 
-        remember();
+        remember(entered);
         gate.remove();
         resolve();
       }
@@ -93,5 +106,5 @@ const Lock = (() => {
     });
   }
 
-  return { require, lock };
+  return { require, lock, passphrase: () => passphrase };
 })();
