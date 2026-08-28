@@ -1,32 +1,33 @@
+/* Dark by choice, not by system preference. Light sensitivity is a migraine
+   symptom, and this app gets opened mid-attack and at 3am — a white screen is
+   the wrong thing to hand someone in that moment. */
 :root {
-  --accent: #6d5ae0;
-  --accent-dark: #5646c9;
-  --bg: #f4f3f9;
-  --card-bg: #ffffff;
-  --text: #1c1c1e;
-  --text-secondary: #6e6e73;
-  --border: #e5e4ec;
-  --danger: #d9453d;
-  --up: #c9531f;
-  --down: #2b7fb8;
-  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  color-scheme: dark;
+
+  --bg: #12100e;              /* warm near-black, so the orange sits in the same family */
+  --card: #1c1917;
+  --raised: #252120;          /* readings, inputs — a step up from the card */
+  --border: #2e2926;
+  --border-soft: #241f1d;
+
+  --text: #f5f0ec;
+  --text-secondary: #a79e97;
+
+  --accent: #ff9f5a;
+  --accent-bright: #ffb37a;
+  --accent-deep: #f0803a;
+  --on-accent: #1a0f07;       /* dark ink on orange — 9.4:1, where white would be 2.2:1 */
+
+  /* Pressure trend is a diverging pair: cool for falling, warm for rising,
+     neutral in the middle. Colour only ever reinforces the arrow and the
+     signed number, never carries the meaning alone. */
+  --falling: #7cc4ee;
+  --rising: #ffb37a;
+  --danger: #ff7a6b;
+
+  --radius: 16px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --accent: #8f7dff;
-    --accent-dark: #7a67f0;
-    --bg: #000000;
-    --card-bg: #1c1c1e;
-    --text: #f2f2f7;
-    --text-secondary: #98989f;
-    --border: #38383a;
-    --up: #ff9a63;
-    --down: #6fc0f0;
-    --card-shadow: none;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -39,121 +40,146 @@ html, body {
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: contain;
 }
 
 .hidden { display: none !important; }
 
+/* ------------------------------------------------------------------ header */
+
 .topbar {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--bg);
-  padding: calc(var(--safe-top) + 12px) 20px 12px;
-  border-bottom: 1px solid var(--border);
+  padding: calc(var(--safe-top) + 14px) 20px 12px;
+  background: rgba(18, 16, 14, 0.86);
+  backdrop-filter: saturate(140%) blur(12px);
+  -webkit-backdrop-filter: saturate(140%) blur(12px);
+  border-bottom: 1px solid var(--border-soft);
 }
-.topbar h1 { margin: 0; font-size: 1.6rem; font-weight: 700; }
+.topbar h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
 
 #main {
-  max-width: 620px;
+  max-width: 600px;
   margin: 0 auto;
-  padding: 16px 16px calc(24px + var(--safe-bottom));
+  padding: 8px 16px calc(32px + var(--safe-bottom));
 }
 
-/* ------------------------------------------------------------ the button */
+/* -------------------------------------------------------------- the button */
 
 .hero {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px 0 8px;
+  padding: 30px 0 10px;
+}
+
+/* A soft bloom behind the button so it reads as the light source on the page. */
+.hero::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 159, 90, 0.18) 0%, rgba(255, 159, 90, 0) 68%);
+  pointer-events: none;
 }
 
 .log-button {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  width: 210px;
-  height: 210px;
+  gap: 4px;
+  width: 196px;
+  height: 196px;
   border: none;
   border-radius: 50%;
-  background: linear-gradient(160deg, var(--accent), var(--accent-dark));
-  color: #fff;
+  background: linear-gradient(155deg, var(--accent-bright), var(--accent-deep));
+  color: var(--on-accent);
   font-family: inherit;
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  letter-spacing: 0.01em;
-  box-shadow: 0 10px 28px rgba(109, 90, 224, 0.35);
+  letter-spacing: -0.01em;
+  box-shadow: 0 12px 34px rgba(240, 128, 58, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.22);
   cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
 }
 .log-button:active {
-  transform: scale(0.96);
-  box-shadow: 0 6px 16px rgba(109, 90, 224, 0.3);
+  transform: scale(0.965);
+  box-shadow: 0 6px 18px rgba(240, 128, 58, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
-.log-button:disabled { opacity: 0.65; cursor: default; }
-.log-button.logging { animation: pulse 1.1s ease-in-out infinite; }
-.log-button-icon { font-size: 2.4rem; line-height: 1; font-weight: 400; }
+.log-button:disabled { filter: saturate(0.7) brightness(0.82); cursor: default; }
+.log-button.logging { animation: pulse 1.4s ease-in-out infinite; }
+.log-button-icon { font-size: 2rem; line-height: 1; font-weight: 300; opacity: 0.85; }
 
 @keyframes pulse {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(0.97); }
+  50% { transform: scale(0.975); }
 }
-
 @media (prefers-reduced-motion: reduce) {
   .log-button, .log-button.logging { transition: none; animation: none; }
 }
 
 .log-status {
-  margin: 16px 4px 4px;
+  margin: 20px 8px 6px;
   text-align: center;
-  font-size: 0.92rem;
-  line-height: 1.45;
+  font-size: 0.9rem;
+  line-height: 1.5;
   color: var(--text-secondary);
-  min-height: 2.6em;
+  min-height: 2.7em;
+  text-wrap: balance;
 }
 
 /* -------------------------------------------------------------- containers */
 
 .card {
-  background: var(--card-bg);
-  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
   padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: var(--card-shadow);
+  margin-bottom: 14px;
 }
 
 .section-label {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--text-secondary);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .hint {
-  margin: 8px 0 0;
-  font-size: 0.8rem;
-  line-height: 1.4;
+  margin: 10px 0 0;
+  font-size: 0.79rem;
+  line-height: 1.5;
   color: var(--text-secondary);
 }
 
 .divider {
   height: 1px;
-  background: var(--border);
+  background: var(--border-soft);
   margin: 18px -16px;
 }
 
 .footer-note {
-  margin: 8px 4px 0;
-  font-size: 0.78rem;
-  line-height: 1.5;
+  margin: 6px 8px 0;
+  font-size: 0.75rem;
+  line-height: 1.6;
   text-align: center;
   color: var(--text-secondary);
+  opacity: 0.8;
 }
 
 /* ------------------------------------------------------------ last logged */
@@ -165,89 +191,118 @@ html, body {
   gap: 12px;
 }
 .latest-head .section-label { margin-bottom: 0; }
-.latest-when { font-size: 0.9rem; font-weight: 600; }
+.latest-when { font-size: 0.88rem; font-weight: 600; }
 
+/* Readings are stat tiles, not a chart: the number is the whole point, so it
+   gets the weight and the label recedes. */
 .reading-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px 8px;
+  gap: 8px;
   margin-top: 14px;
 }
 .reading-grid:empty { display: none; margin: 0; }
 
-.reading { min-width: 0; }
+.reading {
+  min-width: 0;
+  padding: 10px 11px;
+  background: var(--raised);
+  border-radius: 11px;
+}
 .reading-label {
   display: block;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   color: var(--text-secondary);
-  margin-bottom: 3px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .reading-value {
   display: block;
-  font-size: 1.02rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
   overflow-wrap: break-word;
 }
+/* Text readings (sky condition) sit on one line in the same tile a number
+   would use, rather than wrapping and dragging the whole row taller. */
+.reading-value.is-text {
+  font-size: 0.83rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .reading-value .unit {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 500;
   color: var(--text-secondary);
 }
 
+.trend-down { color: var(--falling); }
+.trend-up { color: var(--rising); }
+.trend-flat { color: var(--text-secondary); }
+
 .prior-block {
   margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
+  padding-top: 15px;
+  border-top: 1px solid var(--border-soft);
 }
 .prior-block .section-label { margin-bottom: 0; }
 .prior-block .reading-grid { margin-top: 10px; }
 
-.trend-down { color: var(--down); }
-.trend-up { color: var(--up); }
-.trend-flat { color: var(--text-secondary); }
-
 /* ----------------------------------------------------------------- history */
 
-.history { margin-bottom: 16px; }
+.history { margin-bottom: 14px; }
 .history-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: 4px 4px 10px;
+  padding: 12px 4px 10px;
 }
-.history-head h2 { margin: 0; font-size: 1.05rem; font-weight: 700; }
-.entry-count { font-size: 0.82rem; color: var(--text-secondary); }
+.history-head h2 {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.entry-count { font-size: 0.79rem; color: var(--text-secondary); }
 
 .empty-state {
   margin: 0;
-  padding: 22px 16px;
+  padding: 26px 20px;
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
   color: var(--text-secondary);
-  background: var(--card-bg);
-  border-radius: 14px;
-  box-shadow: var(--card-shadow);
+  background: var(--card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
 }
 
 .entry-list { list-style: none; margin: 0; padding: 0; }
 
 .entry {
-  background: var(--card-bg);
-  border-radius: 14px;
-  margin-bottom: 10px;
-  box-shadow: var(--card-shadow);
+  background: var(--card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  margin-bottom: 9px;
   overflow: hidden;
+  transition: border-color 0.15s ease;
 }
+.entry.open { border-color: var(--border); }
 
 .entry-head {
   display: grid;
-  grid-template-columns: 1fr auto auto;
-  grid-template-areas: "when chip chevron" "summary chip chevron";
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "when chevron" "summary chevron";
   align-items: center;
-  gap: 2px 10px;
+  gap: 3px 10px;
   width: 100%;
-  padding: 12px 14px;
+  padding: 13px 15px;
   background: none;
   border: none;
   color: inherit;
@@ -255,130 +310,118 @@ html, body {
   text-align: left;
   cursor: pointer;
 }
-.entry-when { grid-area: when; font-size: 0.95rem; font-weight: 600; }
+.entry-when {
+  grid-area: when;
+  font-size: 0.94rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
 .entry-summary {
   grid-area: summary;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
-.chevron { grid-area: chevron; color: var(--text-secondary); font-size: 0.85rem; }
+.chevron {
+  grid-area: chevron;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
 
-.pending-tag { font-style: italic; }
+.pending-tag { font-style: italic; opacity: 0.85; }
 
 .entry-body {
-  padding: 4px 14px 14px;
-  border-top: 1px solid var(--border);
+  padding: 2px 15px 16px;
+  border-top: 1px solid var(--border-soft);
 }
-.entry-body .section-label { margin-top: 16px; }
+.entry-body .section-label { margin-top: 18px; }
+.entry-body .prior-block .section-label { margin-top: 0; }
 .entry-body .reading-grid { margin-top: 12px; }
 
-.date-edit {
+/* ------------------------------------------------------------------ inputs */
+
+.date-edit,
+.notes,
+.gate-input,
+.city-search input {
   width: 100%;
-  padding: 10px;
+  padding: 11px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
+  border-radius: 11px;
+  background: var(--raised);
   color: var(--text);
   font-family: inherit;
   font-size: 0.95rem;
+  transition: border-color 0.15s ease;
 }
-
-.status-warn { color: var(--up); }
-
-.notes {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 0.95rem;
-  resize: vertical;
+.date-edit:focus,
+.notes:focus,
+.gate-input:focus,
+.city-search input:focus {
+  outline: none;
+  border-color: var(--accent);
 }
+.notes { resize: vertical; line-height: 1.5; }
+.date-edit { font-variant-numeric: tabular-nums; }
 
 /* ----------------------------------------------------------------- buttons */
 
 .wide-button {
   width: 100%;
-  padding: 13px;
+  padding: 14px;
   border: none;
-  border-radius: 11px;
+  border-radius: 12px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-family: inherit;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.98rem;
+  font-weight: 650;
   cursor: pointer;
+  transition: background 0.15s ease;
 }
-.wide-button:active { background: var(--accent-dark); }
+.wide-button:active { background: var(--accent-deep); }
 
-.button-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.button-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 
 .small-button {
   flex: 1 1 auto;
-  padding: 9px 14px;
+  padding: 10px 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
+  border-radius: 11px;
+  background: transparent;
   color: var(--accent);
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
-.small-button:disabled { opacity: 0.6; cursor: default; }
+.small-button:active { background: var(--raised); border-color: var(--accent); }
+.small-button:disabled { opacity: 0.5; cursor: default; }
 
 .delete-button {
-  margin-top: 16px;
-  padding: 9px 14px;
+  margin-top: 18px;
+  padding: 10px 15px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 11px;
   background: transparent;
   color: var(--danger);
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 600;
   cursor: pointer;
 }
 
 .city-search { display: flex; gap: 8px; margin-top: 10px; }
-.city-search input {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 9px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 0.95rem;
-}
+.city-search input { flex: 1 1 auto; min-width: 0; }
 .city-search .small-button { flex: 0 0 auto; }
 
-.location-display { margin: 0; font-size: 0.95rem; font-weight: 500; }
+.location-display { margin: 0; font-size: 0.94rem; font-weight: 500; }
 .location-display.placeholder { color: var(--text-secondary); font-weight: 400; }
 
-/* ------------------------------------------------------------------- toast */
-
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: calc(24px + var(--safe-bottom));
-  transform: translateX(-50%);
-  z-index: 100;
-  max-width: min(90vw, 420px);
-  padding: 12px 18px;
-  border-radius: 12px;
-  background: rgba(28, 28, 30, 0.94);
-  color: #fff;
-  font-size: 0.88rem;
-  line-height: 1.4;
-  text-align: center;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-}
+.status-warn { color: var(--accent); }
 
 /* -------------------------------------------------------------------- gate */
 
@@ -394,28 +437,42 @@ html, body {
 }
 .gate-inner {
   width: 100%;
-  max-width: 320px;
+  max-width: 300px;
   text-align: center;
 }
-.gate-icon { font-size: 3rem; line-height: 1; }
-.gate-title { margin: 14px 0 6px; font-size: 1.5rem; font-weight: 700; }
-.gate-sub { margin: 0 0 22px; font-size: 0.92rem; color: var(--text-secondary); }
-
-.gate-input {
-  width: 100%;
-  padding: 13px 14px;
-  margin-bottom: 12px;
+/* The installed home-screen icon, so the gate is recognisably the same app. */
+.gate-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
   border: 1px solid var(--border);
-  border-radius: 11px;
-  background: var(--card-bg);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 1rem;
-  text-align: center;
 }
+.gate-title {
+  margin: 16px 0 6px;
+  font-size: 1.4rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.gate-sub { margin: 0 0 24px; font-size: 0.88rem; color: var(--text-secondary); }
+.gate-input { margin-bottom: 12px; text-align: center; }
+.gate-error { margin: 0 0 12px; font-size: 0.83rem; color: var(--danger); }
 
-.gate-error {
-  margin: 0 0 12px;
-  font-size: 0.85rem;
-  color: var(--danger);
+/* ------------------------------------------------------------------- toast */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(26px + var(--safe-bottom));
+  transform: translateX(-50%);
+  z-index: 100;
+  max-width: min(88vw, 400px);
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: #2a2523;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.86rem;
+  line-height: 1.45;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }

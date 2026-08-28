@@ -459,10 +459,10 @@ async function exportCSV() {
 // ----------------------------------------------------------------- rendering
 
 function cellsHtml(cells) {
-  return cells.map(([label, value]) => `
+  return cells.map(([label, value, modifier]) => `
     <div class="reading">
       <span class="reading-label">${label}</span>
-      <span class="reading-value">${value}</span>
+      <span class="reading-value${modifier ? " " + modifier : ""}">${value}</span>
     </div>`).join("");
 }
 
@@ -489,7 +489,7 @@ function readingGrid(entry) {
     ["Humidity", humidityCell(entry)],
     ["Temp", tempCell(entry)],
     ["Wind", entry.windSpeed != null ? `${entry.windSpeed.toFixed(1)}<span class="unit"> mph</span>` : "—"],
-    ["Sky", `${entry.skyIcon || ""} ${esc(entry.skyCondition || "—")}`],
+    ["Sky", `${entry.skyIcon || ""} ${esc(entry.skyCondition || "—")}`, "is-text"],
   ]);
 }
 
