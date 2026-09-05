@@ -11,8 +11,19 @@ const state = {
 const LOCATION_KEY = "migraine-log.location";
 // Bumped when an entry gains new weather fields, so entries stored under an
 // older shape get re-fetched once instead of staying half-filled forever.
-const WEATHER_SCHEMA = 2;
+const WEATHER_SCHEMA = 3;
+
+// How far back daily background samples are filled in. Open-Meteo's forecast
+// endpoint reaches ~92 days, so a gap that long closes in a single pass; leave
+// a little headroom under the limit.
+const SAMPLE_DAYS = 88;
 const el = (id) => document.getElementById(id);
+
+// Daily background samples share the store with attacks, but they are
+// comparison data, not events — they never appear in the history list, the
+// count, or the "last logged" card.
+const isSample = (entry) => entry.kind === "daily";
+const attacks = () => state.entries.filter((e) => !isSample(e));
 
 // ---------------------------------------------------------------- formatting
 
@@ -143,6 +154,7 @@ async function useCurrentLocation() {
     saveLocation(pos.coords.latitude, pos.coords.longitude);
     showToast("Location set");
     backfillPending();
+    fillDailySamples();
   } catch (err) {
     const denied = err && err.code === 1;
     showToast(denied
@@ -178,6 +190,7 @@ async function searchCity() {
     el("city-input").value = "";
     showToast(`Location set to ${label}`);
     backfillPending();
+    fillDailySamples();
   } catch (err) {
     showToast(`Couldn't look that up: ${err.message}`);
   } finally {
@@ -234,6 +247,9 @@ async function logMigraine() {
     btn.disabled = false;
     btn.classList.remove("logging");
     render();
+    // The first tap is what establishes a location on a fresh install, and so
+    // it's the first moment background sampling can run at all.
+    fillDailySamples();
   }
 }
 
@@ -357,6 +373,7 @@ async function attachWeather(entry, location) {
 async function backfillPending() {
   const cutoff = Date.now() - 85 * 86400000;
   const pending = state.entries.filter((e) =>
+    !isSample(e) &&
     (e.weatherStatus !== "ok" || e.weatherSchema !== WEATHER_SCHEMA) &&
     new Date(e.date).getTime() > cutoff
   );
@@ -382,6 +399,89 @@ async function backfillPending() {
   if (filled) {
     render();
     showToast(`Filled in weather for ${filled} earlier ${filled === 1 ? "entry" : "entries"}`);
+  }
+}
+
+// -------------------------------------------------------- background samples
+
+// A log of attacks alone can't answer "does falling pressure bring these on?" —
+// there's nothing to compare against. Every day the app is opened, it fills in
+// a weather sample for each day it missed, so the export carries the days
+// nothing happened too. No tap, no notification, no reason for the user to
+// think about it.
+function sampleDates(existingIds) {
+  const wanted = [];
+  for (let back = 0; back < SAMPLE_DAYS; back++) {
+    const day = new Date();
+    day.setDate(day.getDate() - back);
+    // Local noon: one consistent hour of day, so samples are comparable with
+    // each other rather than drifting with when the app happened to open.
+    day.setHours(12, 0, 0, 0);
+    // Never sample ahead of the clock — today's noon hasn't happened yet in
+    // the morning, and the API would be handing back a forecast.
+    if (day.getTime() > Date.now()) continue;
+    if (!existingIds.has(sampleId(day))) wanted.push(day);
+  }
+  return wanted;
+}
+
+// Deterministic, so re-sampling a day is an overwrite rather than a duplicate.
+function sampleId(day) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `daily-${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
+}
+
+async function fillDailySamples() {
+  const location = state.location;
+  if (!location || !navigator.onLine) return;
+
+  const existing = new Set(state.entries.filter(isSample).map((e) => e.id));
+  const wanted = sampleDates(existing);
+  if (!wanted.length) return;
+
+  let pairs;
+  try {
+    // However many days are missing, this is two requests.
+    pairs = await Weather.fetchMany(location.lat, location.lng, wanted);
+  } catch {
+    return; // no signal or the API is unhappy; the next launch tries again
+  }
+
+  const created = [];
+  for (const day of wanted) {
+    const pair = pairs.get(day.getTime());
+    if (!pair) continue;
+    created.push({
+      id: sampleId(day),
+      kind: "daily",
+      date: day.toISOString(),
+      ...pair.reading,
+      prior24h: pair.prior24h,
+      latitude: location.lat,
+      longitude: location.lng,
+      locationLabel: location.label,
+      weatherStatus: "ok",
+      weatherSchema: WEATHER_SCHEMA,
+      updatedAt: new Date().toISOString(),
+      _synced: false,
+    });
+  }
+  if (!created.length) return;
+
+  for (const sample of created) await DB.put(sample);
+  state.entries = [...state.entries, ...created]
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  render();
+
+  // One bulk call rather than a POST per day — a first run can be 88 of them.
+  try {
+    await Sync.importAll(created.map(forServer));
+    for (const sample of created) {
+      sample._synced = true;
+      await DB.put(sample);
+    }
+  } catch {
+    // Left unsynced; the next flush picks them up.
   }
 }
 
@@ -522,7 +622,7 @@ function statusNote(entry) {
 
 function renderLatest() {
   const card = el("latest-card");
-  const latest = state.entries[0];
+  const latest = attacks()[0];
   if (!latest) {
     card.classList.add("hidden");
     return;
@@ -573,12 +673,21 @@ function entryItem(entry) {
 function render() {
   renderLatest();
 
+  const shown = attacks();
   const list = el("entry-list");
-  list.innerHTML = state.entries.map(entryItem).join("");
-  el("empty-state").classList.toggle("hidden", state.entries.length > 0);
+  list.innerHTML = shown.map(entryItem).join("");
+  el("empty-state").classList.toggle("hidden", shown.length > 0);
 
-  const count = state.entries.length;
+  const count = shown.length;
   el("entry-count").textContent = count ? `${count} ${count === 1 ? "entry" : "entries"}` : "";
+
+  // The export carries rows nobody tapped for. Say so here, so opening the
+  // file isn't the first time those rows are a surprise.
+  const samples = state.entries.length - count;
+  el("export-hint").textContent = samples
+    ? `${count} logged ${count === 1 ? "attack" : "attacks"} plus ${samples} comparison ` +
+      `${samples === 1 ? "day" : "days"} — the days without one, so the numbers have something to sit against.`
+    : "Every entry, one row each — opens in Numbers, Excel, or Sheets.";
 }
 
 // -------------------------------------------------------------------- wiring
@@ -632,6 +741,7 @@ function wireEvents() {
   window.addEventListener("online", () => {
     backfillPending();
     syncNow();
+    fillDailySamples();
   });
 }
 
@@ -645,6 +755,7 @@ async function init() {
   render();
   await syncNow();
   backfillPending();
+  fillDailySamples();
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(() => {

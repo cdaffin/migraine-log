@@ -1,10 +1,17 @@
 // CSV export — one row per logged attack, in a shape that opens cleanly in
 // Numbers/Excel/Sheets and is easy to hand to a neurologist.
 const CSVio = (() => {
-  // Two raw readings per row — the logged hour, then the same place 24 hours
-  // earlier. Deliberately no 24h difference column: the pair is there to be
-  // subtracted in the spreadsheet, however the analysis wants to do it.
+  // One row per attack-or-day, with two raw readings on each: the logged hour,
+  // then the same place 24 hours earlier. Deliberately no 24h difference
+  // column — the pair is there to be subtracted in the spreadsheet, however
+  // the analysis wants to do it.
+  //
+  // "Attack" is 1 for a logged attack and 0 for a daily background sample.
+  // That column is what makes the file analysable: filtering or averaging on
+  // it compares attack days against ordinary ones. Without the 0 rows there is
+  // no baseline, and "pressure was falling" says nothing on its own.
   const COLUMNS = [
+    ["Attack", (e) => (e.kind === "daily" ? 0 : 1)],
     ["Date", (e) => fmtDate(e.date)],
     ["Time", (e) => fmtTime(e.date)],
     ["Pressure (inHg)", (e) => num(e.pressureInHg, 2)],
@@ -15,6 +22,15 @@ const CSVio = (() => {
     ["Temp (F)", (e) => num(e.temperature, 0)],
     ["Wind (mph)", (e) => num(e.windSpeed, 1)],
     ["Sky", (e) => e.skyCondition || ""],
+    ["Day Pressure Low (hPa)", (e) => num(e.dayPressureLow, 1)],
+    ["Day Pressure High (hPa)", (e) => num(e.dayPressureHigh, 1)],
+    ["US AQI", (e) => num(e.usAqi, 0)],
+    ["PM2.5 (ug/m3)", (e) => num(e.pm25, 1)],
+    ["PM10 (ug/m3)", (e) => num(e.pm10, 1)],
+    ["Ozone (ug/m3)", (e) => num(e.ozone, 1)],
+    ["NO2 (ug/m3)", (e) => num(e.nitrogenDioxide, 1)],
+    ["CO (ug/m3)", (e) => num(e.carbonMonoxide, 1)],
+    ["UV Index", (e) => num(e.uvIndex, 1)],
     ["24h Prior Observed", (e) => prior(e).observedAt || ""],
     ["24h Prior Pressure (inHg)", (e) => num(prior(e).pressureInHg, 2)],
     ["24h Prior Pressure (hPa)", (e) => num(prior(e).pressureHpa, 1)],
@@ -23,9 +39,14 @@ const CSVio = (() => {
     ["24h Prior Temp (F)", (e) => num(prior(e).temperature, 0)],
     ["24h Prior Wind (mph)", (e) => num(prior(e).windSpeed, 1)],
     ["24h Prior Sky", (e) => prior(e).skyCondition || ""],
+    ["24h Prior US AQI", (e) => num(prior(e).usAqi, 0)],
+    ["24h Prior PM2.5 (ug/m3)", (e) => num(prior(e).pm25, 1)],
+    ["24h Prior NO2 (ug/m3)", (e) => num(prior(e).nitrogenDioxide, 1)],
     ["Latitude", (e) => num(e.latitude, 5)],
     ["Longitude", (e) => num(e.longitude, 5)],
     ["Weather Status", (e) => e.weatherStatus || ""],
+    ["Hour of Day", (e) => new Date(e.date).getHours()],
+    ["Day of Week", (e) => new Date(e.date).toLocaleDateString("en-US", { weekday: "short" })],
     ["Notes", (e) => (e.notes || "").replace(/\n/g, " | ")],
   ];
 

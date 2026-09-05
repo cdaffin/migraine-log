@@ -17,6 +17,7 @@ export is how the data gets out.
 | 24h prior reading | The same set of values, same place, 24 hours before the logged timestamp |
 | 3h pressure change | The one derived figure kept, since nothing else stores the hour three back |
 | Location | Device GPS, or the saved fallback location |
+| Air quality | US AQI, PM2.5, PM10, ozone, NO₂, CO, UV index, from the same hour |
 | Notes | Optional, added afterwards by tapping the entry |
 
 Tapping an entry also lets you correct its date and time — the weather is tied
@@ -33,8 +34,34 @@ so a daylight-saving changeover still lands on the hour that was genuinely 24
 hours before. When it falls outside the window the API returned, those columns
 are simply left empty and the entry is kept on the strength of its own reading.
 
+## Comparison days
+
+A log of attacks on its own cannot answer "does falling pressure bring these
+on?" — there is nothing to compare against. Thirty entries showing falling
+pressure mean nothing until you know what the pressure did on the days you were
+fine. It might just be what the season does.
+
+So the app also records a **daily background sample**: the same readings, at
+local noon, for every day. No tap and no notification — whenever the app is
+opened it quietly fills in each day it missed, reaching back up to 88 days.
+However many days are outstanding, it costs two requests, because one call to
+each endpoint returns the whole span.
+
+Those samples never appear in the history list, the entry count, or the "last
+logged" card. They exist for the export, where the **`Attack`** column is `1`
+for a logged attack and `0` for a background day. Filtering or averaging on
+that column is what makes the file analysable — without the `0` rows there is
+no baseline.
+
+Sampling begins once the app knows a location, which the first tap establishes
+(or set one by city in the card at the bottom).
+
 Weather comes from [Open-Meteo](https://open-meteo.com/) — no API key, no
-account. City lookup uses their geocoding endpoint.
+account — with pollutants from their companion air-quality endpoint. City
+lookup uses their geocoding endpoint. Air quality is treated as optional: if
+that endpoint fails those columns are blank and the weather reading is kept, and
+it is never retried, so a broken air endpoint can't slow down logging an
+attack.
 
 ## How it behaves
 
@@ -47,6 +74,10 @@ account. City lookup uses their geocoding endpoint.
   retried on the next launch or `online` event — including deletes, which are
   queued so a later pull can't resurrect them. Where two edits collide, the one
   with the newer `updatedAt` wins.
+- **Background samples are complete or absent.** Unlike attacks, a sample is
+  only written once its weather is in hand, so it never needs the pending
+  retry. Its id is derived from the date, which makes re-sampling a day an
+  overwrite rather than a duplicate.
 - **Pending entries fill themselves in** on the next launch or the next time
   the browser comes back online. Open-Meteo serves ~3 months of hourly history,
   so a backfill can be quite late and still be accurate. Entries stored before
