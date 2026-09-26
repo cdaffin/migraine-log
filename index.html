@@ -31,6 +31,7 @@
 
 <header class="topbar">
   <h1>Migraine Log</h1>
+  <button type="button" id="sync-status" class="sync-pill" hidden></button>
 </header>
 
 <main id="main">
@@ -50,6 +51,7 @@
       <span class="section-label">Last logged</span>
       <span id="latest-when" class="latest-when"></span>
     </div>
+    <p id="latest-sky" class="sky-caption"></p>
     <div id="latest-grid" class="reading-grid"></div>
     <div id="latest-prior"></div>
     <p id="latest-note" class="hint hidden"></p>
@@ -65,16 +67,20 @@
     <ul id="entry-list" class="entry-list"></ul>
   </section>
 
-  <!-- ===== EXPORT + LOCATION ===== -->
+  <!-- ===== EXPORT ===== -->
   <section class="card">
     <button type="button" id="btn-export" class="wide-button">Export CSV</button>
-    <p id="export-hint" class="hint">Every entry, one row each — opens in Numbers, Excel, or Sheets.</p>
-    <p id="sync-status" class="hint"></p>
+    <p id="export-hint" class="hint">One row per entry — opens in Numbers, Excel, or Sheets.</p>
+  </section>
 
-    <div class="divider"></div>
-
-    <span class="section-label">Location for weather</span>
-    <p id="location-display" class="location-display">Not set — uses your device location on the first log.</p>
+  <!-- ===== SETTINGS ===== -->
+  <section class="card settings">
+    <div class="setting">
+      <div class="setting-text">
+        <span class="setting-label">Weather location</span>
+        <span id="location-display" class="setting-value">Set on your first log</span>
+      </div>
+    </div>
     <div class="button-row">
       <button type="button" id="btn-use-current" class="small-button">Use current location</button>
       <button type="button" id="btn-toggle-search" class="small-button">Set by city</button>
@@ -83,17 +89,17 @@
       <input type="text" id="city-input" placeholder="City name, e.g. Tallahassee" autocomplete="off">
       <button type="button" id="btn-city-search" class="small-button">Search</button>
     </div>
-    <p class="hint">Saved on this device and reused whenever GPS isn't available.</p>
 
     <div class="divider"></div>
 
-    <button type="button" id="btn-lock" class="small-button">Lock this device</button>
-    <p class="hint">Asks for the passphrase again the next time the app opens.</p>
+    <button type="button" id="btn-lock" class="setting setting-action">
+      <span class="setting-text">
+        <span class="setting-label">Lock this device</span>
+        <span class="setting-value">Asks for the passphrase on next open</span>
+      </span>
+      <span class="setting-chevron" aria-hidden="true">›</span>
+    </button>
   </section>
-
-  <p class="footer-note">
-    Entries live in this browser only — nothing is uploaded. Export regularly if the log matters.
-  </p>
 
 </main>
 

@@ -1,5 +1,5 @@
 // Serves the whole origin — this app is alone on its own site.
-const CACHE_NAME = "migraine-log-v5";
+const CACHE_NAME = "migraine-log-v6";
 const APP_SHELL = [
   "./",
   "./index.html",

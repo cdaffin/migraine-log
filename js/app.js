@@ -96,7 +96,7 @@ function loadSavedLocation() {
 }
 
 function saveLocation(lat, lng, label) {
-  state.location = { lat, lng, label: label || `${lat.toFixed(3)}°, ${lng.toFixed(3)}°` };
+  state.location = { lat, lng, label: label || fmtCoords(lat, lng) };
   try {
     localStorage.setItem(LOCATION_KEY, JSON.stringify(state.location));
   } catch {
@@ -105,15 +105,26 @@ function saveLocation(lat, lng, label) {
   renderLocation();
 }
 
+function fmtCoords(lat, lng) {
+  const ns = lat >= 0 ? "N" : "S";
+  const ew = lng >= 0 ? "E" : "W";
+  return `${Math.abs(lat).toFixed(2)}° ${ns}, ${Math.abs(lng).toFixed(2)}° ${ew}`;
+}
+
+// Labels saved by earlier versions are a bare "30.438°, -84.281°" pair; show
+// those the readable way too rather than waiting for the location to change.
+const RAW_COORD_LABEL = /^-?\d+(\.\d+)?°, -?\d+(\.\d+)?°$/;
+
 function renderLocation() {
   const display = el("location-display");
   if (!state.location) {
-    display.textContent = "Not set — uses your device location on the first log.";
+    display.textContent = "Set on your first log";
     display.classList.add("placeholder");
-  } else {
-    display.textContent = state.location.label;
-    display.classList.remove("placeholder");
+    return;
   }
+  const { lat, lng, label } = state.location;
+  display.textContent = !label || RAW_COORD_LABEL.test(label) ? fmtCoords(lat, lng) : label;
+  display.classList.remove("placeholder");
 }
 
 function getPosition(options) {
@@ -329,16 +340,21 @@ async function syncNow() {
   }
 }
 
+const SYNC_STATES = {
+  ok: { label: "Synced", detail: "Everything is saved to the server." },
+  offline: { label: "Offline", detail: "Saved on this device — it reaches the server when you're back online." },
+  auth: { label: "Sync off", detail: "The server rejected the passphrase — set LOG_PASSWORD in Netlify to match." },
+};
+
 function setSyncStatus(state_) {
   const node = el("sync-status");
-  if (!node) return;
-  const text = {
-    ok: "Saved to the server.",
-    offline: "Saved on this device — will reach the server when you're back online.",
-    auth: "Server rejected the passphrase — set LOG_PASSWORD in Netlify to match.",
-  }[state_];
-  node.textContent = text || "";
-  node.classList.toggle("status-warn", state_ !== "ok");
+  const info = SYNC_STATES[state_];
+  if (!node || !info) return;
+  node.textContent = info.label;
+  node.dataset.state = state_;
+  node.dataset.detail = info.detail;
+  node.setAttribute("aria-label", `${info.label}. ${info.detail}`);
+  node.hidden = false;
 }
 
 // Fetches conditions for an entry's timestamp/place and folds them in. The
@@ -589,8 +605,22 @@ function readingGrid(entry) {
     ["Humidity", humidityCell(entry)],
     ["Temp", tempCell(entry)],
     ["Wind", entry.windSpeed != null ? `${entry.windSpeed.toFixed(1)}<span class="unit"> mph</span>` : "—"],
-    ["Sky", `${entry.skyIcon || ""} ${esc(entry.skyCondition || "—")}`, "is-text"],
+    ["Air quality", aqiCell(entry.usAqi)],
   ]);
+}
+
+// US AQI bands, as the EPA names them. The word rides along with the number so
+// the tile reads without knowing the scale.
+function aqiCell(aqi) {
+  if (aqi == null) return "—";
+  const band = aqi <= 50 ? "good" : aqi <= 100 ? "moderate" : aqi <= 150 ? "sensitive"
+    : aqi <= 200 ? "unhealthy" : aqi <= 300 ? "very unhealthy" : "hazardous";
+  return `${Math.round(aqi)}<span class="unit"> ${band}</span>`;
+}
+
+function skyCaption(entry) {
+  if (entry.weatherStatus !== "ok" || !entry.skyCondition || entry.skyCondition === "—") return "";
+  return `${entry.skyIcon || ""} ${esc(entry.skyCondition)}`.trim();
 }
 
 // The same place, 24 hours earlier — shown as its own reading rather than as a
@@ -629,6 +659,7 @@ function renderLatest() {
   }
   card.classList.remove("hidden");
   el("latest-when").textContent = fmtDayTime(latest.date);
+  el("latest-sky").innerHTML = skyCaption(latest);
   el("latest-grid").innerHTML = readingGrid(latest);
   el("latest-prior").innerHTML = priorBlock(latest);
 
@@ -641,8 +672,12 @@ function renderLatest() {
 function entryItem(entry) {
   const trend = trendLabel(entry.pressureChange3h);
   const summary = entry.weatherStatus === "ok"
-    ? `${entry.pressureInHg != null ? entry.pressureInHg.toFixed(2) + " inHg" : "—"} <span class="${trend.cls}">${trend.arrow}</span> · ${entry.humidity != null ? Math.round(entry.humidity) + "% RH" : "—"}`
+    ? `${entry.pressureInHg != null ? entry.pressureInHg.toFixed(2) + " inHg" : "—"} <span class="${trend.cls}">${trend.arrow}</span> · ${entry.humidity != null ? Math.round(entry.humidity) + "% RH" : "—"}${entry.skyIcon ? ` · <span class="sky-icon">${entry.skyIcon}</span>` : ""}`
     : `<span class="pending-tag">weather pending</span>`;
+
+  // Notes are where things like aura get written down, so a line of them shows
+  // without opening the row.
+  const note = (entry.notes || "").split("\n")[0].trim();
 
   const open = state.openId === entry.id;
 
@@ -651,17 +686,19 @@ function entryItem(entry) {
       <button type="button" class="entry-head" data-toggle="${entry.id}">
         <span class="entry-when">${esc(fmtDayTime(entry.date))}</span>
         <span class="entry-summary">${summary}</span>
-        <span class="chevron" aria-hidden="true">${open ? "▾" : "▸"}</span>
+        ${note && !open ? `<span class="entry-note">${esc(note)}</span>` : ""}
+        <span class="chevron" aria-hidden="true">›</span>
       </button>
       ${open ? `
       <div class="entry-body">
+        ${skyCaption(entry) ? `<p class="sky-caption">${skyCaption(entry)}</p>` : ""}
         <div class="reading-grid">${readingGrid(entry)}</div>
         ${priorBlock(entry)}
         ${statusNote(entry) ? `<p class="hint">${statusNote(entry)}</p>` : ""}
         <span class="section-label">Date &amp; time</span>
         <input type="datetime-local" class="date-edit" data-date="${entry.id}"
                value="${localInputValue(entry.date)}">
-        <p class="hint">Changing this re-reads the weather for the new time.</p>
+        <p class="hint">Changing it re-reads the weather for the new time.</p>
         <span class="section-label">Notes</span>
         <textarea class="notes" rows="2" data-notes="${entry.id}"
           placeholder="Triggers, meds, how long it lasted">${esc(entry.notes || "")}</textarea>
@@ -685,9 +722,9 @@ function render() {
   // file isn't the first time those rows are a surprise.
   const samples = state.entries.length - count;
   el("export-hint").textContent = samples
-    ? `${count} logged ${count === 1 ? "attack" : "attacks"} plus ${samples} comparison ` +
-      `${samples === 1 ? "day" : "days"} — the days without one, so the numbers have something to sit against.`
-    : "Every entry, one row each — opens in Numbers, Excel, or Sheets.";
+    ? `${count} ${count === 1 ? "attack" : "attacks"} plus ${samples} comparison ` +
+      `${samples === 1 ? "day" : "days"} without one — the baseline the attacks are measured against.`
+    : "One row per entry — opens in Numbers, Excel, or Sheets.";
 }
 
 // -------------------------------------------------------------------- wiring
@@ -697,6 +734,7 @@ function wireEvents() {
   el("btn-export").addEventListener("click", exportCSV);
   el("btn-use-current").addEventListener("click", useCurrentLocation);
   el("btn-lock").addEventListener("click", Lock.lock);
+  el("sync-status").addEventListener("click", (e) => showToast(e.currentTarget.dataset.detail));
   el("btn-city-search").addEventListener("click", searchCity);
 
   el("btn-toggle-search").addEventListener("click", () => {

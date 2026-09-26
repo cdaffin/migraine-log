@@ -24,6 +24,7 @@
   --falling: #7cc4ee;
   --rising: #ffb37a;
   --danger: #ff7a6b;
+  --good: #8fd6a4;           /* sync OK — 10:1 on the card, and always beside its word */
 
   --radius: 16px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -52,10 +53,14 @@ html, body {
   position: sticky;
   top: 0;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: calc(var(--safe-top) + 14px) 20px 12px;
-  background: rgba(18, 16, 14, 0.86);
-  backdrop-filter: saturate(140%) blur(12px);
-  -webkit-backdrop-filter: saturate(140%) blur(12px);
+  /* Solid. A translucent bar let the history heading read through it as a
+     ghost when scrolled, and the blur was buying nothing at this darkness. */
+  background: var(--bg);
   border-bottom: 1px solid var(--border-soft);
 }
 .topbar h1 {
@@ -64,6 +69,34 @@ html, body {
   font-weight: 650;
   letter-spacing: -0.02em;
 }
+
+/* Sync state as a small labelled dot. The word always accompanies the colour,
+   and tapping it gives the full sentence. */
+.sync-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+.sync-pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--good);
+}
+.sync-pill[data-state="offline"]::before { background: var(--accent); }
+.sync-pill[data-state="auth"]::before { background: var(--danger); }
+.sync-pill[data-state="auth"] { color: var(--danger); }
 
 #main {
   max-width: 600px;
@@ -173,15 +206,6 @@ html, body {
   margin: 18px -16px;
 }
 
-.footer-note {
-  margin: 6px 8px 0;
-  font-size: 0.75rem;
-  line-height: 1.6;
-  text-align: center;
-  color: var(--text-secondary);
-  opacity: 0.8;
-}
-
 /* ------------------------------------------------------------ last logged */
 
 .latest-head {
@@ -192,6 +216,13 @@ html, body {
 }
 .latest-head .section-label { margin-bottom: 0; }
 .latest-when { font-size: 0.88rem; font-weight: 600; }
+
+.sky-caption {
+  margin: 6px 0 0;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+.sky-caption:empty { display: none; }
 
 /* Readings are stat tiles, not a chart: the number is the whole point, so it
    gets the weight and the label recedes. */
@@ -228,14 +259,6 @@ html, body {
   font-variant-numeric: tabular-nums;
   overflow-wrap: break-word;
 }
-/* Text readings (sky condition) sit on one line in the same tile a number
-   would use, rather than wrapping and dragging the whole row taller. */
-.reading-value.is-text {
-  font-size: 0.83rem;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
 .reading-value .unit {
   font-size: 0.74rem;
   font-weight: 500;
@@ -283,26 +306,31 @@ html, body {
   border-radius: var(--radius);
 }
 
-.entry-list { list-style: none; margin: 0; padding: 0; }
-
-.entry {
+.entry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   background: var(--card);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
-  margin-bottom: 9px;
   overflow: hidden;
-  transition: border-color 0.15s ease;
 }
-.entry.open { border-color: var(--border); }
+.entry-list:empty { display: none; }
+
+.entry + .entry { border-top: 1px solid var(--border-soft); }
+.entry.open { background: rgba(255, 255, 255, 0.015); }
 
 .entry-head {
   display: grid;
   grid-template-columns: 1fr auto;
-  grid-template-areas: "when chevron" "summary chevron";
+  grid-template-areas:
+    "when chevron"
+    "summary chevron"
+    "note chevron";
   align-items: center;
-  gap: 3px 10px;
+  gap: 3px 12px;
   width: 100%;
-  padding: 13px 15px;
+  padding: 13px 16px;
   background: none;
   border: none;
   color: inherit;
@@ -310,6 +338,8 @@ html, body {
   text-align: left;
   cursor: pointer;
 }
+.entry-head:active { background: rgba(255, 255, 255, 0.03); }
+
 .entry-when {
   grid-area: when;
   font-size: 0.94rem;
@@ -322,22 +352,41 @@ html, body {
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
+.sky-icon { font-size: 0.78rem; }
+
+/* One line of the note, so "aura" is visible without opening the row. */
+.entry-note {
+  grid-area: note;
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: var(--text);
+  opacity: 0.72;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .chevron {
   grid-area: chevron;
   color: var(--text-secondary);
-  font-size: 0.72rem;
-  opacity: 0.75;
+  font-size: 1.15rem;
+  line-height: 1;
+  opacity: 0.6;
+  transition: transform 0.18s ease;
 }
+.entry.open .chevron { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .chevron { transition: none; } }
 
 .pending-tag { font-style: italic; opacity: 0.85; }
 
 .entry-body {
-  padding: 2px 15px 16px;
-  border-top: 1px solid var(--border-soft);
+  padding: 0 16px 16px;
 }
+.entry-body .sky-caption { margin: 0 0 10px; }
 .entry-body .section-label { margin-top: 18px; }
 .entry-body .prior-block .section-label { margin-top: 0; }
-.entry-body .reading-grid { margin-top: 12px; }
+.entry-body .reading-grid { margin-top: 0; }
+.entry-body .prior-block .reading-grid { margin-top: 10px; }
 
 /* ------------------------------------------------------------------ inputs */
 
@@ -418,10 +467,42 @@ html, body {
 .city-search input { flex: 1 1 auto; min-width: 0; }
 .city-search .small-button { flex: 0 0 auto; }
 
-.location-display { margin: 0; font-size: 0.94rem; font-weight: 500; }
-.location-display.placeholder { color: var(--text-secondary); font-weight: 400; }
 
-.status-warn { color: var(--accent); }
+/* ---------------------------------------------------------------- settings */
+
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.setting-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.setting-label { font-size: 0.92rem; font-weight: 600; }
+.setting-value {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.setting-value.placeholder { font-style: italic; }
+
+/* A whole-row button, so the target is the row rather than a small pill. */
+.setting-action {
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.setting-chevron {
+  color: var(--text-secondary);
+  font-size: 1.15rem;
+  opacity: 0.6;
+}
 
 /* -------------------------------------------------------------------- gate */
 
