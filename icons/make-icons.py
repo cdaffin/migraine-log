@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates the app icons — a barometer dial on a warm near-black field.
+"""Generates the app icons — a barometer dial on a cool near-black field.
 
 No image libraries are available in this repo's toolchain, so the PNGs are
 written directly (RGBA, zlib-deflated scanlines). Re-run from this directory
@@ -11,9 +11,9 @@ import math
 import struct
 import zlib
 
-BG = (0x12, 0x10, 0x0E)      # warm near-black, matching the app background
-DIAL = (0xF5, 0xF0, 0xEC)    # bone-white ring and hub
-NEEDLE = (0xFF, 0x9F, 0x5A)  # light orange needle, the app's accent
+BG = (0x0D, 0x11, 0x17)      # cool near-black, matching the app background
+DIAL = (0xE9, 0xEE, 0xF5)    # cool white ring and hub
+NEEDLE = (0x8C, 0xC8, 0xFF)  # light blue needle, the app's accent
 
 
 def blend(dst, src, alpha):

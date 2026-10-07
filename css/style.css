@@ -1,30 +1,41 @@
 /* Dark by choice, not by system preference. Light sensitivity is a migraine
    symptom, and this app gets opened mid-attack and at 3am — a white screen is
-   the wrong thing to hand someone in that moment. */
+   the wrong thing to hand someone in that moment.
+
+   Every colour on the page comes from these tokens, glows and shadows
+   included, so a palette change is an edit here and nowhere else. */
 :root {
   color-scheme: dark;
 
-  --bg: #12100e;              /* warm near-black, so the orange sits in the same family */
-  --card: #1c1917;
-  --raised: #252120;          /* readings, inputs — a step up from the card */
-  --border: #2e2926;
-  --border-soft: #241f1d;
+  --bg: #0d1117;              /* cool near-black, so the blue sits in the same family */
+  --card: #161b22;
+  --raised: #1f2630;          /* readings, inputs — a step up from the card */
+  --border: #2a3240;
+  --border-soft: #1e2530;
+  --toast: #1f2630;
 
-  --text: #f5f0ec;
-  --text-secondary: #a79e97;
+  --text: #e9eef5;
+  --text-secondary: #9aa6b5;
 
-  --accent: #ff9f5a;
-  --accent-bright: #ffb37a;
-  --accent-deep: #f0803a;
-  --on-accent: #1a0f07;       /* dark ink on orange — 9.4:1, where white would be 2.2:1 */
+  --accent: #8cc8ff;
+  --accent-bright: #b3dcff;
+  --accent-deep: #5aa8ef;
+  --accent-rgb: 90, 168, 239; /* --accent-deep as channels, for glows and shadows */
+  --on-accent: #07131f;       /* dark ink on light blue — 7.4:1 even at the deep end of
+                                 the button gradient, where white would be 1.8:1 */
 
-  /* Pressure trend is a diverging pair: cool for falling, warm for rising,
-     neutral in the middle. Colour only ever reinforces the arrow and the
-     signed number, never carries the meaning alone. */
-  --falling: #7cc4ee;
-  --rising: #ffb37a;
-  --danger: #ff7a6b;
-  --good: #8fd6a4;           /* sync OK — 10:1 on the card, and always beside its word */
+  /* Pressure trend is a diverging pair: violet for falling, amber for rising,
+     neutral in the middle. Falling used to be blue, but blue is now the
+     accent — and lavender would have merged with it for deuteranopes (ΔE 1.6).
+     This deeper violet separates by lightness instead, which survives colour
+     blindness: worst case ΔE 11.5 from the accent, 16.5 from rising. Colour
+     still only reinforces the arrow and the signed number. */
+  --falling: #a98cff;
+  --rising: #ffb86b;
+
+  --good: #7ee0a1;            /* sync OK */
+  --warn: #ffc46b;            /* offline — the accent is blue now, which reads as info */
+  --danger: #ff8080;
 
   --radius: 16px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -94,7 +105,7 @@ html, body {
   border-radius: 50%;
   background: var(--good);
 }
-.sync-pill[data-state="offline"]::before { background: var(--accent); }
+.sync-pill[data-state="offline"]::before { background: var(--warn); }
 .sync-pill[data-state="auth"]::before { background: var(--danger); }
 .sync-pill[data-state="auth"] { color: var(--danger); }
 
@@ -122,7 +133,7 @@ html, body {
   width: 280px;
   height: 280px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 159, 90, 0.18) 0%, rgba(255, 159, 90, 0) 68%);
+  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.2) 0%, rgba(var(--accent-rgb), 0) 68%);
   pointer-events: none;
 }
 
@@ -143,13 +154,13 @@ html, body {
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  box-shadow: 0 12px 34px rgba(240, 128, 58, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  box-shadow: 0 12px 34px rgba(var(--accent-rgb), 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3);
   cursor: pointer;
   transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
 }
 .log-button:active {
   transform: scale(0.965);
-  box-shadow: 0 6px 18px rgba(240, 128, 58, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  box-shadow: 0 6px 18px rgba(var(--accent-rgb), 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 .log-button:disabled { filter: saturate(0.7) brightness(0.82); cursor: default; }
 .log-button.logging { animation: pulse 1.4s ease-in-out infinite; }
@@ -461,6 +472,16 @@ html, body {
 }
 .wide-button:active { background: var(--accent-deep); }
 
+/* Export is occasional. Solid blue made it a second primary competing with
+   the log button on the same screen; tinted, it steps back. The gate keeps
+   the solid style, since Enter is the only thing to do there. */
+.wide-button.secondary {
+  background: rgba(var(--accent-rgb), 0.14);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  color: var(--accent);
+}
+.wide-button.secondary:active { background: rgba(var(--accent-rgb), 0.22); }
+
 .button-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 
 .small-button {
@@ -579,7 +600,7 @@ html, body {
   max-width: min(88vw, 400px);
   padding: 12px 18px;
   border-radius: 12px;
-  background: #2a2523;
+  background: var(--toast);
   border: 1px solid var(--border);
   color: var(--text);
   font-size: 0.86rem;
