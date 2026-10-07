@@ -14,6 +14,9 @@ const CSVio = (() => {
     ["Attack", (e) => (e.kind === "daily" ? 0 : 1)],
     ["Date", (e) => fmtDate(e.date)],
     ["Time", (e) => fmtTime(e.date)],
+    // Blank, not 0, for background days and for attacks logged before the box
+    // existed — "no scotoma" and "never asked" aren't the same answer.
+    ["Scintillating Scotoma", (e) => (typeof e.scotoma === "boolean" ? (e.scotoma ? 1 : 0) : "")],
     ["Pressure (inHg)", (e) => num(e.pressureInHg, 2)],
     ["Pressure (hPa)", (e) => num(e.pressureHpa, 1)],
     ["3h Change (hPa)", (e) => signed(e.pressureChange3h, 1)],

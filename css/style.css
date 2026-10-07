@@ -163,6 +163,36 @@ html, body {
   .log-button, .log-button.logging { transition: none; animation: none; }
 }
 
+/* A checkbox row in the app's own colours rather than the platform's grey. */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.check-row input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex: none;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.hero-check {
+  margin-top: 22px;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+}
+
+.entry-check { margin-top: 18px; }
+
 .log-status {
   margin: 20px 8px 6px;
   text-align: center;

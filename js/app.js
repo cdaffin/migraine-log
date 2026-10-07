@@ -221,10 +221,14 @@ async function logMigraine() {
   const entry = {
     id: crypto.randomUUID(),
     date: now.toISOString(),
+    scotoma: el("scotoma-next").checked,
     notes: "",
     weatherStatus: "pending",
     updatedAt: now.toISOString(),
   };
+  // Back to the usual for next time: unticking it describes one attack, not
+  // a new default.
+  el("scotoma-next").checked = true;
 
   // Saved before the network is touched: the timestamp is the part that can't
   // be recovered later, and weather for a past hour always can be.
@@ -503,6 +507,13 @@ async function fillDailySamples() {
 
 // ------------------------------------------------------------------ entry UI
 
+async function setScotoma(id, value) {
+  const entry = state.entries.find((e) => e.id === id);
+  if (!entry || entry.scotoma === value) return;
+  entry.scotoma = value;
+  await persist(entry);
+}
+
 async function saveNotes(id, text) {
   const entry = state.entries.find((e) => e.id === id);
   if (!entry || entry.notes === text) return;
@@ -695,6 +706,10 @@ function entryItem(entry) {
         <div class="reading-grid">${readingGrid(entry)}</div>
         ${priorBlock(entry)}
         ${statusNote(entry) ? `<p class="hint">${statusNote(entry)}</p>` : ""}
+        <label class="check-row entry-check">
+          <input type="checkbox" data-scotoma="${entry.id}"${entry.scotoma ? " checked" : ""}>
+          <span>Started with a scintillating scotoma</span>
+        </label>
         <span class="section-label">Date &amp; time</span>
         <input type="datetime-local" class="date-edit" data-date="${entry.id}"
                value="${localInputValue(entry.date)}">
@@ -774,6 +789,8 @@ function wireEvents() {
   list.addEventListener("change", (e) => {
     const date = e.target.closest("[data-date]");
     if (date) changeDate(date.dataset.date, date.value);
+    const scotoma = e.target.closest("[data-scotoma]");
+    if (scotoma) setScotoma(scotoma.dataset.scotoma, scotoma.checked);
   });
 
   window.addEventListener("online", () => {
